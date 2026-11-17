@@ -1,0 +1,146 @@
+name: Deploy Bread Heo Studio
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: breadheostudio-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Fetch the verified public site snapshot
+        run: |
+          python3 - <<'PYTHON'
+          from concurrent.futures import ThreadPoolExecutor
+          from hashlib import sha256
+          from pathlib import Path
+          from urllib.parse import quote
+          from urllib.request import Request, urlopen
+          import time
+
+          source = 'https://breadheostudio-5hk35xu3.edgeone.dev/'
+          files = {
+                "archive-renderer.js": "aa2a10a0cac247bad0327d05ec6b948f9e433b5537d819dfe0ec87fc0530c04a",
+                "assets/archive-engine/LICENSE": "b42f104f4b3687773c76efbf990c1ab7b306a8c59035958c0b886dfbbcf2cd91",
+                "assets/archive-engine/LUCIDE-LICENSE": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+                "assets/archive-engine/THREE-LICENSE": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+                "assets/archive-engine/archive-cassette.glb": "dda42b9b3b471d11c69820a64084d254a64b27761287ab0e35dd8387ec0a0bed",
+                "assets/archive-engine/release-ui.js": "34c61b4c4983161e60cc2330fe4a67fdf77b4d10e0129ba774b323a75b4d6b20",
+                "assets/archive-engine/release.css": "784f54cd01bb4f1bb1a478173da31850e403fd5956b97588dec73a83a911923c",
+                "assets/avatar-ink.png": "9f8fd943f7fbae6a1f51c947b12a25a169c0ba3833b3aa644f7e4d47e52bd739",
+                "assets/avatar-transparent.png": "29ed5dbb95a470883a557d9eaec32ee43c099590b9a11ddef1ee72924560285c",
+                "assets/avatar.jpg": "0ec53f6705c13969f2b697d73713bf5127f22377fcc795b5687c4cf80f2a5d3a",
+                "assets/breathscape.jpg": "8a31cdd49540ccba73ac05e5aa7831ea289d2523293c201cdf898d7b8a093c57",
+                "assets/byyoung-digital-human.png": "75d2e4c095aa7b12cb9eaaffb6837c72b37a570471f3198618ffb3adb884aea8",
+                "assets/cost-ieee-preview.png": "42ccacacca685c035e47385e52f35edc405fd7050f774c7b0583a09f5e00f5e0",
+                "assets/fonts/Aslina-Bold.otf": "c498d2381ed4451af1f5ff61a38079dc0acd10992331efd2d37090f0d19b1565",
+                "assets/fonts/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+                "assets/fonts/OFL-Barlow.txt": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
+                "assets/fonts/SJ-Narrow-Light.ttf": "bfad2d71ab4250c7947906f1b2e43f74cc86a1243eab5ab1f6fc671c42d24bc4",
+                "assets/github-contributions-data.js": "fc9e27ff69b1dc3c64cf47be0c48662f49ac313ed573962e640a3c4f68466c1a",
+                "assets/github-contributions.js": "7fdc8e0a23656f9dec1072ade242d32b76cfd6492a339777275c7933921d9ba2",
+                "assets/guangfan-skill-studio-preview.png": "02d0b17332c4e3163e58977cf52ff52539cde8ff1f71b27d1713e923486102bb",
+                "assets/guangfan.jpg": "fb5ce1189b536404c08e70bcce42512e18dc35b9b1ccec54adbbd68dc3824fa5",
+                "assets/jinzhiyao-prototype-preview.png": "7d39e7c32e2eb59bb2f60abac14ad5d203f46ef33a2f4a0ea298ecaa9d7e414e",
+                "assets/loopa-preview.jpg": "977820a8d527ffdd3331ad7b22844db1d1355de063ac39f1d7af297be295101a",
+                "assets/marvel-wordmark.svg": "17c16d669059b92d9585017dbbfa45693ee9702b90c35c863316eef75a9990ed",
+                "assets/nienie-preview.jpg": "25bd36a353107b56bd3b601aa39fc9a9a872c02ec811705c3104315d6664040e",
+                "assets/other-projects/boundless-journey.jpg": "bf4fa4a607d013f2555dee0529a12f4897bcacddc9c9e162584e93b2207f4400",
+                "assets/other-projects/ocean.jpg": "d59a70d17e4426656313784122c560033b64697c58c0b411b53d9b657b22c30e",
+                "assets/other-projects/pineapple-house.jpg": "e293bf715fe43e36b3a2fbeb53201f15d6cca0394191b82df61c43eb5b990265",
+                "assets/other-projects/red-star.jpg": "1424b22d9a35083695eba78e35e642e3acacf28fad6965a84f17cabff04035f7",
+                "assets/other-projects/tooth-revolution-board.png": "d53bd67156d5609b5632129c53bd27435e22b0fe946189e872fe353c075f9d2d",
+                "assets/other-projects/tooth-revolution.jpg": "07b29436155c79259f33e563601283ab0be903a5bebf561f343be1eda0468b09",
+                "assets/other-projects/tree-search.jpg": "32a622009b39f9c77d41cabbe142532b3cabdfdd65057f59f261c80940f000a7",
+                "assets/other-projects/tribes-hope.jpg": "3f4c5f3892ed7eac2a46cec44ef1f93a3707f186a3501db3b1a3a3d208a587fb",
+                "assets/other-projects/urban-relocation-board.png": "16c2dc4be584ee19bc1a5c49163bed0bb3e5e70fda3d5095b846315a467c6728",
+                "assets/other-projects/urban-relocation.jpg": "d77e3f4fa402db4107caaa253ffebff5e198514833807b870872667ec0a18116",
+                "assets/portfolio/bread-heo-watermark.svg": "6d76028f94814f17f8f4f9dbf4ece0c4f6e0619e6ca3269e80f0defb8bbb1c96",
+                "assets/portfolio/breathscape-01.webp": "b06fca59a6f798a400fa5dc6e7cc2a21d2cd6c5696d95c7f1d07ce5576344ee9",
+                "assets/portfolio/breathscape-02.webp": "bf9026dae62c996c4dc8f5d725ed66d35605f0ed514e109c8cd06681c22f965a",
+                "assets/portfolio/breathscape-03.webp": "c2e10f8508e85a4c0aeac3444f5dbbda24e362d8e58920debfb7ce29a8b48c2c",
+                "assets/portfolio/breathscape-04.webp": "f148bb1d178758358b37994fdbedefe45a1a3dbb6c6b4b9a6e3dbfec065ab17f",
+                "assets/portfolio/breathscape-main.jpg": "a00c598a1b8b0162ad6861e3b92a466e46c3471689b7ce290c8e173b295204fd",
+                "assets/portfolio/breathscape-space.jpg": "0bfe4337bf4053823fcb58367f4cf15f343307f21b6064c3fd4a2efc78406a74",
+                "assets/portfolio/breathscape-system.jpg": "c74dca4f5745486cda9da294a7047230a913eb0fc65304c72e5eab263a580ee0",
+                "assets/portfolio/guangfan-01.webp": "8399ee9dc63adcd9714bef279b1f1ac0ab6e689c10cd61e05e052d0f20955549",
+                "assets/portfolio/guangfan-02.webp": "478684911c4fbdbad47c21d9eb5d3bcaf8642161f137bfb3de699c9197658213",
+                "assets/portfolio/guangfan-03.webp": "b7ea587023676968fb06fdb0578b0f1994bd61876fdc28785a593a6339e5e5b6",
+                "assets/portfolio/guangfan-04.webp": "21affde61413d62c671d7d7082920c0daa2d992077139a8ac8911a81d4bf2a0b",
+                "assets/portfolio/guangfan-05.webp": "cb1413ef266591ad7281c45cb6c7c99e0dc755e516d052d1ef19c58c3e4525b1",
+                "assets/portfolio/guangfan-06.webp": "2445369b95394b4d1216084fff78703aca4591c3a430a26f79c363f7125b227a",
+                "assets/portfolio/guangfan-home.jpg": "e4a801ce255dfdcd72ef833166c978f0fd7d983c9fbc53e24869423d745ef203",
+                "assets/portfolio/guangfan-skill.jpg": "4bfef95ad7dc0119dd55e7202468b8c78813ab4f303426bb2f0bacbe9419c75e",
+                "assets/portfolio/guangfan-vision.jpg": "90723cc2a84cde3f669e195eeacb2b975fd20c2ba35096218491ede59102ec6e",
+                "assets/portfolio/jinzhiyao-01.webp": "8ae9bd9e2f82c9379a36f2139b0ad2e28d694ffe497dd9b95d597aad0942f259",
+                "assets/portfolio/jinzhiyao-02.webp": "1c3db94999b3407b8f742fd115b77878db337e09958f6dd365c169070ab2227a",
+                "assets/portfolio/jinzhiyao-03.webp": "05d90b676118e1ebfa5fa2a02f95aed92778fe7bd88f5f430a8d3540578ceaa6",
+                "assets/portfolio/jinzhiyao-04.webp": "d14d5707fdf0d497dec044ff2f1ac8b2fcad3f9232c74e24def54cc48570f42c",
+                "assets/portfolio/jinzhiyao-05.webp": "04dc789c628ff5e43f8145803cffe0ebea8c3f01af6be510a3a67a3969124ef1",
+                "assets/portfolio/skillpath-01.webp": "ad7c5b421fbb61370b09aee1b7879607b5e4c961c12ad8af5a5eecaea555f944",
+                "assets/portfolio/skillpath-02.webp": "6d49e56944bc2f59e88ae4893c2d218db26dd0556919b7a041c3e19e2d42e71e",
+                "assets/portfolio/skillpath-03.webp": "e43e402c1ae2eb8c2160d31e978cb3f8034dc744d2773cee43b521a610193381",
+                "assets/portfolio/skillpath-04.webp": "c428e4cb58b675341ea853a2d8915e31302f0cdd453d3bb04e701a633b1a6371",
+                "assets/portfolio/skillpath-flow.jpg": "45de5b11ebe18de3d7915fc7c49665333d0c57d96e84858e7ff72da62086fdd3",
+                "assets/portfolio/skillpath-plan.jpg": "316ec20e08544275dc961e91caf92f7b50c93c339330736e770d08e60feddcaf",
+                "assets/portfolio/skillpath-today.jpg": "6ca1d3b841b0953ab672ba2104e8c1be4b5442a7c3459547eada925b51406d3b",
+                "assets/portfolio/xinghai-01.webp": "f907d8a735dfd22657b070154d19b05a3c2247b8527094d97996a10eaf11f932",
+                "assets/portfolio/xinghai-02.webp": "fc68e430ef6537c31ac7f28135d28c6ab7baa997640fb3ba5dc861b0ace4d1f0",
+                "assets/portfolio/xinghai-03.webp": "aa5f3f728dd16b4985fa282929cca96e90f0a4b88370762d886cf03ec52df17c",
+                "assets/siggraph-artist-profile.png": "bb7867e42aca5b2af6913cbd369855afbbbc31fb0e6172fce3226fcea2482622",
+                "assets/siggraph-gravity-field.png": "8e241943b790646d6068b6a125237e000befc1b3123c07c548ccae29aa5d1fe3",
+                "assets/skillpath-learning-flow-preview.png": "ce7559cf667fdbf241d42874cdb17611162a5c3b09d86d99c345c51b49304589",
+                "assets/skillpath.jpg": "7d3387673b3175b0ad3b09e2ac76119bd22f9ed41e53fb64a5f0ec392ce417af",
+                "assets/sph-xiaozao-preview.jpg": "5c816c9437d69bb21b46c63fe97f8ed695bb2a6dbb6647c41dbbd90f43e19a00",
+                "assets/token-usage.png": "faff4ea453b8b4a9d40e103998c73faa3c45455d9a90092b4ddb9c9b765fdc87",
+                "assets/tva-retro-ui-preview.png": "148704b498375d33d1abe1457a785da1fee0189f923ad656f82c9dac8acca9ba",
+                "assets/vocay-rednote-preview.png": "aab91121302d6301c79a93c19b322476f15c3e2e3ac4743e9e6c1be21e92fe35",
+                "assets/xinghai-video-preview.png": "891f61a0b3103121d7c8e205c1d79517fae847c677c11bdce4dbdfdf0fa59332",
+                "cv.html": "c33e6d2fcb289e20163a32fe998c8b1876647e0658c1f38d9a872f45a3ac2a52",
+                "index.html": "9a94d6dc6fc980d918c0188539cb16c299c83413c5e49a951b24da1e31d7b3b6",
+                "portfolio.css": "ef1d000c8471adce1f0a95aa45b0797f3950bb13851d3172f162e28cf8dc9c44",
+                "portfolio.html": "9a94d6dc6fc980d918c0188539cb16c299c83413c5e49a951b24da1e31d7b3b6",
+                "portfolio.js": "a7bacf87c41bb73d0cb7210499667e12442332eff5e9d1317af78c704af023c1",
+          }
+
+          def fetch(item):
+              name, checksum = item
+              request = Request(source + quote(name, safe='/'), headers={'User-Agent': 'Bread Heo Studio Pages deployment'})
+              for attempt in range(3):
+                  try:
+                      with urlopen(request, timeout=25) as response:
+                          data = response.read()
+                      if sha256(data).hexdigest() != checksum:
+                          raise ValueError(f'Snapshot checksum mismatch: {name}')
+                      break
+                  except (OSError, ValueError):
+                      if attempt == 2:
+                          raise
+                      time.sleep(attempt + 1)
+              path = Path('site') / name
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(data)
+
+          with ThreadPoolExecutor(max_workers=10) as workers:
+              list(workers.map(fetch, files.items()))
+          PYTHON
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
+        id: deployment
